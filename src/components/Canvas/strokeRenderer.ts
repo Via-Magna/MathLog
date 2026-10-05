@@ -23,8 +23,7 @@ function getSvgPathFromStroke(stroke: number[][]): string {
 }
 
 /**
- * Renders a single stroke onto a canvas 2D context using perfect-freehand.
- * The stroke is rendered as a filled Path2D shape (not ctx.stroke()).
+ * Renders smooth ink or a constant-width, round eraser path.
  */
 export function renderStroke(
   ctx: CanvasRenderingContext2D,
@@ -32,70 +31,94 @@ export function renderStroke(
 ): void {
   if (stroke.points.length === 0) return;
 
-  // Convert Point[] to the format perfect-freehand expects: [x, y, pressure][]
-  const inputPoints = stroke.points.map((p) => [p.x, p.y, p.pressure]);
+  if (stroke.isEraser) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = '#000';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = stroke.width * 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    const first = stroke.points[0];
+    if (stroke.points.length === 1) {
+      ctx.arc(first.x, first.y, stroke.width, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.moveTo(first.x, first.y);
+      for (const point of stroke.points.slice(1)) ctx.lineTo(point.x, point.y);
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
 
-  // Generate the smooth outline via perfect-freehand
+  const inputPoints = stroke.points.map((p) => [p.x, p.y, p.pressure]);
   const outlinePoints = getStroke(inputPoints, {
-    size: stroke.width * 2, // perfect-freehand 'size' is diameter
+    size: stroke.width * 2,
     ...FREEHAND_OPTIONS,
   });
 
-  // Convert outline to an SVG path string and create a Path2D
   const pathData = getSvgPathFromStroke(outlinePoints);
   const path = new Path2D(pathData);
 
-  // Fill the stroke outline
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = stroke.color;
+  
   ctx.fill(path);
+  ctx.restore();
 }
 
 /**
  * Renders all strokes in the given array onto a canvas context.
- * Clears the canvas first, then fills with background color, then draws all strokes.
+ * Clears the canvas first. (Assumes transparent background).
  */
 export function renderAllStrokes(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
-  strokes: Stroke[],
-  bgColor: string,
-  showLines: boolean = false
+  strokes: Stroke[]
 ): void {
-  // Clear entire canvas
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  clearCanvasLayer(ctx, canvas);
 
-  // Fill with background color
+  for (const stroke of strokes) {
+    renderStroke(ctx, stroke);
+  }
+}
+
+/**
+ * Renders the solid background color and optional grid lines onto the lines canvas.
+ */
+export function renderGridLines(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  bgColor: string,
+  showLines: boolean
+): void {
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
 
   if (showLines) {
     ctx.save();
     ctx.beginPath();
-    // Assuming the css dimensions are passed, wait, canvas.width/height is physical pixels
-    // We should use logic that works with DPR scaling. Since ctx is already scaled,
-    // canvas.width/height is larger by DPR, but ctx operations use logical CSS pixels.
-    // However, canvas.width is the physical width. We should divide by DPR, or just draw
-    // enough lines to cover the screen.
-    // Instead of doing math with DPR here, since ctx is scaled, we can just draw lines
-    // far enough down (e.g. 4000px) or pass logical dimensions.
-    // For simplicity, draw up to 4000px down which covers 4K displays.
-    const LINE_SPACING = 30; // 30px logical spacing
+    const LINE_SPACING = 30;
     ctx.strokeStyle = '#cccccc';
     ctx.lineWidth = 1;
-    // Set line dash for dotted lines like the user's image
     ctx.setLineDash([4, 4]); 
 
-    for (let y = LINE_SPACING; y < 4000; y += LINE_SPACING) {
+    const transform = ctx.getTransform();
+    const width = canvas.width / transform.a;
+    const height = canvas.height / transform.d;
+    for (let y = LINE_SPACING; y < height; y += LINE_SPACING) {
       ctx.moveTo(0, y);
-      ctx.lineTo(4000, y); // wide enough for any screen
+      ctx.lineTo(width, y);
     }
     ctx.stroke();
     ctx.restore();
-  }
-
-  // Draw each stroke
-  for (const stroke of strokes) {
-    renderStroke(ctx, stroke);
   }
 }
 
@@ -106,23 +129,23 @@ export function renderAllStrokes(
 export function renderActiveStroke(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
-  points: Array<[number, number, number]>,
-  color: string,
-  width: number
+  stroke: Stroke,
+  background: HTMLCanvasElement
 ): void {
-  // Clear the foreground canvas (it's transparent)
+  clearCanvasLayer(ctx, canvas);
+  if (stroke.isEraser) {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(background, 0, 0);
+    ctx.restore();
+  }
+  renderStroke(ctx, stroke);
+}
+
+export function clearCanvasLayer(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  if (points.length === 0) return;
-
-  const outlinePoints = getStroke(points, {
-    size: width * 2,
-    ...FREEHAND_OPTIONS,
-  });
-
-  const pathData = getSvgPathFromStroke(outlinePoints);
-  const path = new Path2D(pathData);
-
-  ctx.fillStyle = color;
-  ctx.fill(path);
+  ctx.restore();
 }
