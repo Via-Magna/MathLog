@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 
 interface CanvasRefs {
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -15,7 +15,7 @@ interface CanvasRefs {
  * @param onResize - Callback fired after canvas resize (to trigger a full redraw).
  *                   Stored in a ref so callers don't need to memoize it.
  */
-export function useCanvasSetup(onResize: () => void): CanvasRefs {
+export function useCanvasSetup(onResize: (refs: CanvasRefs) => void): CanvasRefs {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fgCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -24,7 +24,9 @@ export function useCanvasSetup(onResize: () => void): CanvasRefs {
 
   // Store onResize in a ref so it's always current without causing re-effects
   const onResizeRef = useRef(onResize);
-  onResizeRef.current = onResize;
+  useLayoutEffect(() => {
+    onResizeRef.current = onResize;
+  }, [onResize]);
 
   const applyDpiScaling = useCallback(() => {
     const container = containerRef.current;
@@ -63,7 +65,7 @@ export function useCanvasSetup(onResize: () => void): CanvasRefs {
       fgCtxRef.current = fgCtx;
     }
 
-    onResizeRef.current();
+    onResizeRef.current({ containerRef, bgCanvasRef, fgCanvasRef, bgCtxRef, fgCtxRef });
   }, []);
 
   useEffect(() => {

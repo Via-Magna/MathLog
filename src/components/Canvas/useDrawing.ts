@@ -20,7 +20,7 @@ export function useDrawing({ fgCanvasRef, fgCtxRef }: UseDrawingProps) {
   const rafIdRef = useRef<number | null>(null);
 
   // Render the active stroke on the foreground canvas via rAF
-  const scheduleRender = useCallback(() => {
+  const scheduleRender = useCallback(function scheduleRender() {
     rafIdRef.current = requestAnimationFrame(() => {
       const fgCtx = fgCtxRef.current;
       const fgCanvas = fgCanvasRef.current;
