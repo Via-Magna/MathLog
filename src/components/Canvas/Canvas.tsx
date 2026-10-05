@@ -22,7 +22,7 @@ export function Canvas() {
       renderGridLines(linesCtxRef.current, linesCanvasRef.current, CANVAS_BG_COLOR, state.showLines);
     });
 
-  const { handlePointerDown, handlePointerMove, handlePointerUp } = useDrawing({
+  useDrawing({
     fgCanvasRef,
     fgCtxRef,
     bgCanvasRef,
@@ -49,9 +49,8 @@ export function Canvas() {
         eraserCursorRef.current.style.left = `${e.nativeEvent.offsetX}px`;
         eraserCursorRef.current.style.top = `${e.nativeEvent.offsetY}px`;
       }
-      handlePointerMove(e);
     },
-    [handlePointerMove]
+    []
   );
 
   const cursorClass = selectedTool === 'eraser' ? styles.eraserCursor : styles.penCursor;
@@ -64,10 +63,7 @@ export function Canvas() {
       <canvas
         ref={fgCanvasRef}
         className={`${styles.canvas} ${styles.foregroundLayer} ${cursorClass}`}
-        onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMoveWithCursor}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
         style={{ touchAction: 'none' }}
       />
       {selectedTool === 'eraser' && (
