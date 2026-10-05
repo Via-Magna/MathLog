@@ -1,0 +1,116 @@
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+  background-color: var(--color-toolbar-bg, #ffffff);
+  border-right: 1px solid var(--color-toolbar-border, #e0e0e0);
+  width: var(--toolbar-width, 60px);
+  min-width: var(--toolbar-width, 60px);
+  user-select: none;
+}
+
+.toolGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.toolButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-ink, #1a1a2e);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.toolButton:hover:not(:disabled) {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.toolButton.active {
+  background-color: var(--color-primary, #4361ee);
+  color: #ffffff;
+}
+
+.toolButton:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.toolButton:focus-visible {
+  outline: 2px solid var(--color-primary, #4361ee);
+  outline-offset: 2px;
+}
+
+.divider {
+  width: 32px;
+  height: 1px;
+  background-color: var(--color-toolbar-border, #e0e0e0);
+}
+
+.sliderContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.slider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 4px;
+  height: 80px;
+  accent-color: var(--color-primary, #4361ee);
+  cursor: pointer;
+}
+
+.sliderLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-ink, #1a1a2e);
+  opacity: 0.6;
+}
+
+/* Mobile: bottom bar layout */
+@media (max-width: 767px) {
+  .toolbar {
+    flex-direction: row;
+    width: 100%;
+    min-width: unset;
+    height: var(--toolbar-height, 56px);
+    min-height: var(--toolbar-height, 56px);
+    border-right: none;
+    border-top: 1px solid var(--color-toolbar-border, #e0e0e0);
+    padding: 8px 12px;
+    order: 1; /* Push to bottom in column flex layout */
+  }
+
+  .toolGroup {
+    flex-direction: row;
+  }
+
+  .divider {
+    width: 1px;
+    height: 32px;
+  }
+
+  .slider {
+    writing-mode: horizontal-tb;
+    direction: ltr;
+    width: 60px;
+    height: 4px;
+  }
+
+  .sliderContainer {
+    flex-direction: row;
+  }
+}
