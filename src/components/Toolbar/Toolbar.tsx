@@ -29,10 +29,10 @@ export function Toolbar() {
       // Don't capture shortcuts when an input is focused
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      if (e.key === 'p' || e.key === 'P') {
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'p' || e.key === 'P')) {
         e.preventDefault();
         setTool('pen');
-      } else if (e.key === 'e' || e.key === 'E') {
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'e' || e.key === 'E')) {
         e.preventDefault();
         setTool('eraser');
       } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
