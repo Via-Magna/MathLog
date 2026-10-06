@@ -9,10 +9,19 @@
   position: absolute;
   top: 0;
   left: 0;
+  background-color: transparent; /* Canvases must be transparent so layers show through */
 }
 
-.foreground {
+.linesLayer {
+  z-index: 1;
+}
+
+.backgroundLayer {
   z-index: 2;
+}
+
+.foregroundLayer {
+  z-index: 3;
 }
 
 .penCursor {
