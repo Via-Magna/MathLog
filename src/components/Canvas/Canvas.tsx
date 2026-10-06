@@ -15,7 +15,7 @@ export function Canvas() {
 
   // Set up canvases with DPI scaling and resize observer.
   const { containerRef, bgCanvasRef, fgCanvasRef, bgCtxRef, fgCtxRef } =
-    useCanvasSetup(() => {
+    useCanvasSetup(({ bgCtxRef, bgCanvasRef }) => {
       if (!bgCtxRef.current || !bgCanvasRef.current) return;
       const state = useAppStore.getState();
       renderAllStrokes(
