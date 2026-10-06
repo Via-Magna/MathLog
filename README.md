@@ -66,3 +66,36 @@ npm run test:coverage  # coverage report; first run: npm i -D @vitest/coverage-v
 ```
 
 `tests/math/` covers the tokenizer, parser, evaluator, formatter and adapter. It also includes a 50-row golden table, seeded property tests (2,000 random expressions checked against a separate reference evaluator, and 2,000 random symbol sequences that must never throw), and a safety test that scans `src/` for `eval`/`Function`.
+
+## Handwriting recognition (Phase 3)
+
+Recognition runs entirely in the browser using [ink-on](https://github.com/kimseungdae/ink-on) (CoMER, ECCV 2022, Apache-2.0) on ONNX Runtime Web, inside a dedicated Web Worker, so drawing stays at 60 FPS.
+
+### One-time setup
+
+```bash
+npm install         # adds ink-on + onnxruntime-web
+npm run models      # downloads encoder_int8.onnx, decoder_int8.onnx, vocab.json into public/models/comer/ (7.4 MB)
+npm run dev         # also copies the ONNX Runtime .wasm files into public/ort/
+```
+
+Commit `public/models/comer/` so the deployed app works offline. `public/ort/` is generated, so it's git-ignored.
+
+Open `http://localhost:5173/?debug` to see a box around each equation line, with what the model read, the Phase 2 result, the inference time, and an **Export strokes** button for recording test fixtures.
+
+### How it works
+
+1. `lineGrouping.ts` splits strokes into equation lines by vertical overlap. Dots, `−` and `=` bars stay on their line, and side-by-side equations are split. Each line gets a stable key made from its stroke ids.
+2. `RecognitionScheduler` re-groups lines on every add, erase, undo, redo or clear. It sends only changed lines, 400 ms after the pen stops. Undo and redo hit a result cache instantly.
+3. `RecognitionClient` posts each line to the worker as a transferred `Float32Array`. It tracks request ids, so stale or out-of-order answers are dropped, times out after 10 s, and restarts the worker once if it crashes.
+4. In the worker: strokes go through preprocessing (ink-on's algorithm, ported to `OffscreenCanvas` because ink-on's version needs `document`), then ink-on's `InferenceEngine` in `number` mode, then `adaptInkOn`, then `evaluate`.
+5. Results land in `useRecognitionStore` (one `EvalResult` per line), which Phase 4 will draw.
+
+`vite.config.ts` sets COOP/COEP headers so ONNX Runtime can use multi-threaded WASM. Without them it still works, on one thread.
+
+| Setting | Where | Default |
+| --- | --- | --- |
+| Decoding mode, beam width, idle delay, timeout | `src/recognition/config.ts` | `number`, 3 (1 on ≤4 cores or when slow), 400 ms, 10 s |
+| Line grouping thresholds | `DEFAULT_GROUPING` in `src/recognition/lineGrouping.ts` | see file |
+
+Model credit: CoMER handwritten math recognition via ink-on by kimseungdae, Apache License 2.0.
