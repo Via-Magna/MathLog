@@ -24,6 +24,8 @@ export interface Stroke {
   width: number;
   /** Timestamp (Date.now()) when stroke was committed (pointerup). */
   createdAt: number;
+  /** True if this stroke represents an erasure path */
+  isEraser?: boolean;
 }
 
 /** Available drawing tools */
