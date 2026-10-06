@@ -10,7 +10,7 @@ import styles from './Recognition.module.css';
  * Phase 4 replaces this with the real inline answer.
  */
 
-export const isDebugMode = (): boolean =>
+const isDebugMode = (): boolean =>
   typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
 
 function describe(result: EvalResult | undefined): string {

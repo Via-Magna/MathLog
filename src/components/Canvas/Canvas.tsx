@@ -2,8 +2,6 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { useCanvasSetup } from './useCanvasSetup';
 import { useDrawing } from './useDrawing';
-import { renderAllStrokes } from './strokeRenderer';
-import { CANVAS_BG_COLOR, ERASER_HIT_THRESHOLD } from '../../utils/constants';
 import { RecognitionDebugOverlay } from '../Recognition/RecognitionDebugOverlay';
 import { RecognitionStatus } from '../Recognition/RecognitionStatus';
 import { renderAllStrokes, renderGridLines } from './strokeRenderer';
