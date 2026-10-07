@@ -1,178 +1,169 @@
-# MathLog / CalcInk
+<p align="center">
+  <img src="src/assets/logo.png" alt="log(Math)" width="320" />
+</p>
 
-A browser drawing workspace for the Inter IIT 15.0 BootCamp software project. Write an equation such as `18+4×3=` by hand and the answer appears in handwriting next to the `=`, fully on-device. The frontend also provides smooth freehand ink, pixel erasing, undo/redo, and optional ruled paper.
+<p align="center">
+  <b>Write an equation by hand. The answer appears next to the <code>=</code>.</b><br />
+  Handwriting recognition and maths run entirely in your browser, even in airplane mode.
+</p>
 
-## Run locally
+<p align="center">
+  <b><a href="#live-demo">Live demo</a></b> ·
+  <a href="docs/ARCHITECTURE.md">Architecture</a> ·
+  <a href="docs/PERFORMANCE.md">Performance &amp; offline proof</a>
+</p>
 
-Use Node.js 22.12+ (or a supported newer Node.js release) and npm.
+---
 
-```sh
-npm ci
-npm run dev
+log(Math) is our submission for the **CalcInk: On-Device Handwritten Math Calculator** problem (Inter IIT Tech Meet 15.0 Bootcamp, Software Development track). Write `18+4×3=` with a mouse, stylus or finger and `30` appears in handwriting next to the `=`. Erase a digit or rewrite it and the answer updates by itself.
+
+## Highlights
+
+- **100% on-device.** The handwriting model ([CoMER](#model-and-attribution) via ink-on) runs on ONNX Runtime Web in a Web Worker. Nothing is sent to a server; there is no server.
+- **Works offline.** A service worker caches the app and the 7.4 MB model on the first visit. After that, airplane mode works. [Verified](docs/PERFORMANCE.md#results).
+- **Smooth at 60 FPS.** Inference never runs on the main thread: ~58 FPS and zero long tasks measured while the model was running.
+- **No `eval()`.** Our own tokenizer, shunting-yard parser and RPN evaluator, with BODMAS, decimals, negative numbers, brackets and `Undefined` for division by zero.
+- **Live editing.** Erasing, rewriting, undo and redo update answers automatically; undo is instant thanks to a result cache.
+- **Digital-paper feel.** Answers in handwriting ink, sized to your writing, fading in and crossfading on edits, with thinking dots and an optional "what I read" hint.
+- **Tested.** 422 automated tests, including 4,000 randomized maths cases checked against a separate reference evaluator. CI runs lint, tests and the build on every pull request.
+
+## Live demo
+
+**➜ Live demo: https://REPLACE-WITH-DEPLOYED-URL**
+
+Try `18+4×3=`, `0.1+0.2=`, `12÷0=` and `-(2+3)×4=`, then erase and rewrite a digit. Add `?debug` to the URL to see each line's recognition box, what the model read and the inference time.
+
+<!-- Add a screenshot or GIF here: docs/images/demo.gif -->
+
+## Quick start
+
+Requires Node.js 22.12+ and npm.
+
+```bash
+npm ci          # install dependencies
+npm run dev     # start at http://localhost:5173 (copies the ONNX Runtime files first)
 ```
 
-Open the local URL printed by Vite, usually http://localhost:5173.
+The model files are committed in `public/models/comer/`. If they are ever missing, run `npm run models` to download them (7.4 MB).
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Start the development server |
-| `npm run build` | Type-check the app and create the production bundle in `dist/` |
-| `npm run preview` | Serve the built bundle locally |
-| `npm test` | Run the Vitest regression suite |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run lint` | Check source and tests with Oxlint |
+| `npm run dev` | Development server with hot reload |
+| `npm run build` | Type-check, build to `dist/`, and generate the offline service worker |
+| `npm run preview` | Serve the production build locally (offline mode works here) |
+| `npm test` | Run all 422 tests (Vitest) |
+| `npm run lint` | Lint with Oxlint |
+| `npm run models` | Re-download the CoMER model files |
 
-## Drawing controls
+## How to use it
 
-- **Pen:** drag with a mouse, touch, or pen to draw. Press **P** to select it.
-- **Eraser:** press **E** and drag to erase only the area under the round cursor. Each completed erasing gesture is one undoable action; paper lines remain visible.
-- **Width:** use the slider (1-10) for pen size or eraser radius. The eraser cursor shows the resulting diameter.
-- **Undo:** **Ctrl+Z** on Windows/Linux or **Cmd+Z** on macOS.
-- **Redo:** **Ctrl+Shift+Z**, **Cmd+Shift+Z**, or **Ctrl/Cmd+Y**.
-- **Clear canvas:** remove the current drawing; Undo can restore it.
-- **Toggle Lines:** show or hide the ruled-paper background.
-- **Show readings:** press **R** to show what the model read under every line. Unreadable lines (`?`) always show it.
-
-A gesture keeps the tool, color, and width selected at pointer-down. Changes apply to the next gesture. Only one primary pointer draws at a time. Cancellation or loss of pointer capture discards the unfinished gesture. The toolbar moves to the bottom on narrow screens.
-
-## How the frontend is organized
-
-React and TypeScript provide the UI, Vite builds it, Zustand stores drawing state, and `perfect-freehand` generates pen outlines. CSS Modules style the canvas and toolbar; Lucide supplies the icons.
-
-| Location | Responsibility |
-| --- | --- |
-| `src/components/Canvas/Canvas.tsx` | Compose the paper, committed-ink, and active-preview layers |
-| `src/components/Canvas/useCanvasSetup.ts` | Resize canvas bitmaps and apply device-pixel-ratio scaling |
-| `src/components/Canvas/drawingController.ts` | Own a pointer gesture, render its preview, and commit or cancel it |
-| `src/components/Canvas/useDrawing.ts` | Attach and clean up native pointer event listeners |
-| `src/components/Canvas/strokeRenderer.ts` | Render ink, erasure paths, and ruled paper |
-| `src/components/Toolbar/` | Tool buttons, width slider, and keyboard shortcuts |
-| `src/store/useAppStore.ts` | Stroke data and snapshot-based undo/redo, capped at 50 undo entries |
-| `src/types/` | Shared point, stroke, and tool types |
-| `src/utils/geometry.ts` | Geometry helpers retained from whole-stroke erasing |
-| `tests/` | Store, geometry, canvas-command, and gesture regression tests |
-
-Completed ink and erasure gestures are stored in order. Replaying them reconstructs the ink layer. Erasers use destination-out compositing on that layer, leaving the separate paper layer intact. Logical CSS-pixel coordinates are independent of the higher-resolution canvas bitmap.
-
-The renderer tests use canvas API doubles to check drawing commands and compositing order. They do not replace visual checks in a real browser.
-
-## Current limitations
-
-- Drawings and history live in memory only. Reloading or closing the page loses them.
-- Saving/loading documents, image/PDF export, and backend storage are not implemented.
-- See [Phase 4 limitations](#known-limitations) for recognition and answer-rendering limits.
-- The store supports ink color, but the toolbar does not yet expose a color picker.
-- Pen width currently uses simulated pressure; sampled stylus pressure is retained in stroke data.
-
-## Manual smoke check
-
-Draw several lines, erase part of one while keeping the pointer held, and verify unaffected ink stays visible. Release, undo, and redo the erasure. Toggle paper lines and repeat with a different width. Resize the window, try pen and touch input, and confirm Ctrl/Cmd+P still opens the browser print dialog.
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
-
-## Math engine (Phase 2)
-
-`src/math/` is a deterministic arithmetic engine written from scratch. It does not use `eval()`, `Function()` or any math library, and it has no runtime dependencies.
-
-```ts
-import { evaluateString } from './src/math';
-
-evaluateString('18+4×3=');  // { kind: 'ok', display: '30', ... }
-evaluateString('5÷0=');     // { kind: 'undefined', display: 'Undefined', ... }
-evaluateString('3+×4=');    // { kind: 'error', code: 'UNEXPECTED_OPERATOR', ... }
-evaluateString('3+');       // { kind: 'pending', ... }  (no "=" yet, so errors stay hidden)
-```
-
-Pipeline: `tokenize` → `toRPN` (Dijkstra's shunting-yard) → `evaluateRPN` (stack machine) → `formatNumber` (12 significant digits, so `0.1+0.2` shows `0.3`).
-
-| File | Role |
-| --- | --- |
-| `src/math/symbols.ts` | The 18 canonical symbols and `RecognizedExpression` |
-| `src/math/tokenizer.ts` | Merges digits into numbers, handles unary minus and implicit `2(3)` |
-| `src/math/parser.ts` | Shunting-yard to RPN, plus syntax validation |
-| `src/math/evaluator.ts` | RPN evaluation; `÷0` gives `Undefined`, overflow is detected |
-| `src/math/format.ts` | Display formatting |
-| `src/math/index.ts` | `evaluate()` / `evaluateString()`; never throws |
-| `src/recognition/inkOnAdapter.ts` | Maps [ink-on](https://github.com/kimseungdae/ink-on) LaTeX tokens (`\times`, `\div`, …) to canonical symbols |
-
-Every stage returns a typed `Result` instead of throwing. Before `=` is written, a valid expression returns a provisional value (`pending: true`) and an invalid one returns `{ kind: 'pending' }`, so half-written equations never show errors.
-
-### Tests
-
-```bash
-npm test               # all suites
-npm run test:coverage  # coverage report; first run: npm i -D @vitest/coverage-v8@^5
-```
-
-`tests/math/` covers the tokenizer, parser, evaluator, formatter and adapter. It also includes a 50-row golden table, seeded property tests (2,000 random expressions checked against a separate reference evaluator, and 2,000 random symbol sequences that must never throw), and a safety test that scans `src/` for `eval`/`Function`.
-
-## Handwriting recognition (Phase 3)
-
-Recognition runs entirely in the browser using [ink-on](https://github.com/kimseungdae/ink-on) (CoMER, ECCV 2022, Apache-2.0) on ONNX Runtime Web, inside a dedicated Web Worker, so drawing stays at 60 FPS.
-
-### One-time setup
-
-```bash
-npm install         # adds ink-on + onnxruntime-web
-npm run models      # downloads encoder_int8.onnx, decoder_int8.onnx, vocab.json into public/models/comer/ (7.4 MB)
-npm run dev         # also copies the ONNX Runtime .wasm files into public/ort/
-```
-
-Commit `public/models/comer/` so the deployed app works offline. `public/ort/` is generated, so it's git-ignored.
-
-Open `http://localhost:5173/?debug` to see a box around each equation line, with what the model read, the Phase 2 result, the inference time, and an **Export strokes** button for recording test fixtures.
-
-### How it works
-
-1. `visibleInk.ts` drops ink fully covered by a later pixel-eraser path. `lineGrouping.ts` splits the rest into equation lines by vertical overlap. Dots, `−` and `=` bars stay on their line, and side-by-side equations are split. Each line gets a stable key made from its stroke ids plus the ids of erasers that cut it, along with its `lineHeight` and the `=` position (`findEquals.ts`).
-2. `RecognitionScheduler` re-groups lines on every add, erase, undo, redo or clear. It sends only changed lines, 400 ms after the pen stops. Undo and redo hit a result cache instantly.
-3. `RecognitionClient` posts each line to the worker as a transferred `Float32Array`. It tracks request ids, so stale or out-of-order answers are dropped, times out after 10 s, and restarts the worker once if it crashes.
-4. In the worker: strokes go through preprocessing (ink-on's algorithm, ported to `OffscreenCanvas` because ink-on's version needs `document`; partly erased ink is cut with `destination-out`), then ink-on's `InferenceEngine` in `number` mode, then `adaptInkOn`, then `evaluate`.
-5. Results land in `useRecognitionStore` (one `EvalResult` per line), which Phase 4 draws.
-
-`vite.config.ts` sets COOP/COEP headers so ONNX Runtime can use multi-threaded WASM. Without them it still works, on one thread.
-
-| Setting | Where | Default |
+| Control | Shortcut | What it does |
 | --- | --- | --- |
-| Decoding mode, beam width, idle delay, timeout | `src/recognition/config.ts` | `number`, 3 (1 on ≤4 cores or when slow), 400 ms, 10 s |
-| Line grouping thresholds | `DEFAULT_GROUPING` in `src/recognition/lineGrouping.ts` | see file |
+| Pen | **P** | Draw with mouse, touch or stylus |
+| Eraser | **E** | Erase exactly under the round cursor; each gesture is one undo step |
+| Undo / Redo | **Ctrl/Cmd+Z**, **Ctrl/Cmd+Shift+Z** or **Ctrl/Cmd+Y** | Answers come back instantly |
+| Clear canvas | | Undo can restore it |
+| Toggle lines | | Ruled-paper background |
+| Show readings | **R** | Faint text under each line showing what the model read |
+| Width slider | | Pen size or eraser radius (1–10) |
 
-Model credit: CoMER handwritten math recognition via ink-on by kimseungdae, Apache License 2.0.
+Write one equation per line and end it with `=`. Answers appear about 0.5–2 s after you lift the pen. Unreadable lines show `?`, with a hint saying what was read. On phones the toolbar moves to the bottom.
 
-## Inline answers (Phase 4)
+## How it works
 
-Each line's answer is drawn on its own canvas layer, in handwriting-style ink just right of its `=`, and kept up to date as you erase, rewrite, undo or redo. Phase 4 only reads `useRecognitionStore`; the model and maths are unchanged.
+```mermaid
+flowchart LR
+  A[Strokes] --> B[Equation lines<br/>main thread]
+  B -- transferred buffer --> C[Web Worker<br/>preprocess → CoMER<br/>→ LaTeX tokens]
+  C --> D[Maths engine<br/>shunting-yard + RPN]
+  D -- result --> E[Answer drawn<br/>next to =]
+```
 
-| Layer (z) | Content |
+1. **Canvas.** Strokes are captured with pointer events and drawn with `perfect-freehand` on layered, HiDPI-scaled canvases.
+2. **Lines.** Strokes are grouped into equation lines. Erased ink is removed, and only lines that changed are sent, 400 ms after the pen stops.
+3. **Recognition (Web Worker).** Each line is rendered into a tensor on an `OffscreenCanvas` and read by the CoMER model in ONNX Runtime Web (multi-threaded WASM), giving LaTeX tokens like `1 8 + 4 \times 3 =`.
+4. **Maths.** Tokens are mapped to symbols and evaluated by our own parser, still in the worker.
+5. **Answer.** The `=` is found geometrically and the answer is drawn just right of it.
+
+The full design, with the reasoning behind each decision, is in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+
+### Why ONNX Runtime Web in a Web Worker?
+
+- **ONNX** because the pre-trained model ships as INT8 ONNX (7.4 MB). ONNX Runtime Web is the reference runtime, runs on WASM in every modern browser, and needs no conversion step.
+- **A dedicated Web Worker** because encoder and decoder runs take hundreds of milliseconds. On the main thread they would freeze the pen. In the worker the UI thread only groups strokes and draws, which is how drawing stays at 60 FPS while the model works ([measurements](docs/PERFORMANCE.md)).
+- **Multi-threaded WASM** via cross-origin isolation (COOP/COEP headers, or the service worker where a host can't set headers) speeds inference up further on multi-core devices.
+
+## Offline and deployment
+
+`npm run build` writes a service worker (`dist/sw.js`, generated by `scripts/build-sw.mjs`) that precaches the app, the Caveat font, the ONNX Runtime WASM files and the model, about 37 MB. After one online visit an "Available offline" badge appears, and the app works with no network. You can install it as an app (PWA) from the browser menu.
+
+Any static host works. The configs are already in the repo:
+
+| Host | How |
 | --- | --- |
-| 1 | Paper and ruled lines |
-| 2 | Committed ink |
-| 3 | Answers and reading hints (`aria-hidden`; screen readers use a live region) |
-| 4 | The stroke being drawn |
-| 5 | Eraser cursor, status badge, debug overlay |
+| **GitHub Pages** | Settings → Pages → Source: **GitHub Actions**. `.github/workflows/deploy.yml` builds and publishes on every push to `main`. The service worker adds the isolation headers Pages can't set. |
+| **Vercel** | Import the repository; `vercel.json` sets the build and the COOP/COEP headers. |
+| **Netlify / Cloudflare Pages** | Build command `npm run build`, output `dist`; `public/_headers` sets the headers. |
 
-| File | Role |
+## Model and attribution
+
+| | |
 | --- | --- |
-| `src/answers/answerText.ts` | What to show: `30`, `Undefined`, `?` or nothing; reading and spoken text |
-| `src/answers/placeAnswer.ts` | Position and size: digits as tall as yours (18–120 px), centred on the `=`, shrinks or moves below to avoid the canvas edge and other equations |
-| `src/answers/slots.ts` | Slot state machine `hidden → thinking → shown → stale`; follows a line across key changes so an answer never blinks off while it is re-read |
-| `src/answers/AnswerRenderer.ts` | On-demand `requestAnimationFrame` drawing: fade in, crossfade, dim while re-reading, fade out, thinking dots; idle pages draw no frames |
-| `src/answers/useAnswers.ts` | Connects the renderer to the stores, font loading, resize and `prefers-reduced-motion` |
-| `src/components/Answers/AnswerAnnouncer.tsx` | `aria-live` announcements such as "18 plus 4 times 3 equals 30" |
+| Model | **CoMER**: W. Zhao and L. Gao, *CoMER: Modeling Coverage for Transformer-based Handwritten Mathematical Expression Recognition*, ECCV 2022 |
+| Source | [kimseungdae/ink-on](https://github.com/kimseungdae/ink-on): INT8 ONNX export (`encoder_int8.onnx` 3.4 MB, `decoder_int8.onnx` 4.0 MB, `vocab.json`) and inference engine |
+| Licence | **Apache-2.0** |
+| Architecture | DenseNet encoder + Transformer encoder; autoregressive Transformer decoder with coverage attention; beam search (width 3, 1 on slow devices). 113-token LaTeX vocabulary, masked to digits and operators (`number` mode) |
+| Our changes | None to the weights. The stroke preprocessing is ported to `OffscreenCanvas` so it runs in a worker (`src/recognition/preprocess*.ts`, with credit) |
 
-Behaviour:
+Other open-source components: ONNX Runtime Web (MIT), perfect-freehand (MIT), Caveat font (SIL OFL 1.1), React (MIT), Zustand (MIT), Lucide icons (ISC).
 
-- **New answer:** three dots appear (after 250 ms, so cache hits don't flash), then the answer fades in about 1–2 s after you lift the pen.
-- **Edit:** the old answer stays up, dimmed, until the new reading arrives, then crossfades. Undo and redo hit the cache and swap back at once.
-- **Mid-edit:** after erasing a digit, the half-written line (e.g. `7+=`) is read before you rewrite it. The old answer stays up for 3 s (`EDIT_GRACE_MS` in `src/answers/slots.ts`) instead of flashing `?`. If the line is still unreadable after that, `?` appears.
-- **`12÷0=`** shows `Undefined`. A line with `=` that can't be read shows `?` plus a hint with what was read and why it failed.
-- **Reduced motion:** with `prefers-reduced-motion`, fades are instant and the dots are static.
+## Project structure
 
-The [Caveat](https://fonts.google.com/specimen/Caveat) font (SIL Open Font License 1.1) is bundled through `@fontsource/caveat`, so answers render offline.
+```
+src/
+  components/   Canvas layers, toolbar, answer layer, status badges
+  store/        Zustand stores: strokes + undo/redo, recognition results
+  recognition/  Line grouping, worker protocol, scheduler, client, ink-on adapter, worker
+  math/         Tokenizer, shunting-yard parser, RPN evaluator, formatting (no eval)
+  answers/      Answer text, placement, slot state machine, renderer
+  pwa/          Service-worker registration and offline status
+scripts/        ONNX Runtime copy, model download, service-worker generator
+public/         Model files, icons, web manifest, host headers
+tests/          Vitest suites for every module (422 tests)
+docs/           Architecture, performance and offline verification
+```
 
-### Known limitations
+## Testing
 
-- An `=` written as a single stroke is not found geometrically; the answer then goes after the line's right edge, centred on the line.
-- Answers are drawn ink, not strokes: the eraser cannot erase them, and they are not exported.
-- Placement avoids other equations' bounding boxes, not individual strokes; very crowded pages fall back to a small answer that may overlap.
-- An eraser that only grazes a line's box still triggers one re-read of that line.
-- The thresholds (font scale, `=` detection, fades) were tuned on synthetic geometry; check them against real handwriting.
+```bash
+npm test
+```
+
+| Area | What's covered |
+| --- | --- |
+| Maths | Tokenizer, parser, evaluator, formatting; 50-row expected-answer table; 4,000 seeded random cases; a check that `src/` never uses `eval`/`Function` |
+| Recognition | Line grouping, eraser handling, stroke packing (coordinate conversion), preprocessing maths, worker queue, client timeouts and crash recovery, scheduler timing |
+| Answers | Text, placement, state machine, renderer |
+| Canvas | Renderer command order, pointer gestures, HiDPI scaling, undo/redo |
+| Offline | Service-worker precache list and versioning |
+
+Frame rate and airplane mode were also verified in a real browser; see [docs/PERFORMANCE.md](docs/PERFORMANCE.md). Manual canvas checks are listed in [tests/README.md](tests/README.md).
+
+## Known limitations
+
+- An `=` written as a single stroke isn't found geometrically; the answer then goes after the line's right edge.
+- Only `+ − × ÷`, decimals and brackets are evaluated; powers, roots and variables show `?`.
+- Answers can't be erased with the eraser, and drawings aren't saved between visits.
+- Recognition takes about 0.5–2 s per line, depending on the device.
+
+## Team
+
+Built by @manavsep, @PrinceK-Git and @PersonInDisguise. We worked through issues and pull requests, one per phase:
+
+| Phase | Scope |
+| --- | --- |
+| 1 | Canvas, pen and pixel eraser, undo/redo, HiDPI, regression tests |
+| 2 | Maths engine: tokenizer, shunting-yard, RPN, edge cases, tests |
+| 3 | On-device recognition: ink-on in a Web Worker, line grouping, scheduling |
+| 4 | Answers on the canvas, reactive editing, micro-interactions, accessibility |
+| 5 | Offline PWA, deployment, performance verification, documentation |

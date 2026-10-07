@@ -7,6 +7,7 @@ import { useAnswers } from '../../answers/useAnswers';
 import { AnswerAnnouncer } from '../Answers/AnswerAnnouncer';
 import { RecognitionDebugOverlay } from '../Recognition/RecognitionDebugOverlay';
 import { RecognitionStatus } from '../Recognition/RecognitionStatus';
+import { OfflineReadyToast } from '../Recognition/OfflineReadyToast';
 import { renderAllStrokes, renderGridLines } from './strokeRenderer';
 import { CANVAS_BG_COLOR } from '../../utils/constants';
 import styles from './Canvas.module.css';
@@ -88,6 +89,7 @@ export function Canvas() {
       )}
       <RecognitionDebugOverlay />
       <RecognitionStatus />
+      <OfflineReadyToast />
       <AnswerAnnouncer />
     </div>
   );

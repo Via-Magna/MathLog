@@ -8,6 +8,7 @@
     "dev": "vite",
     "prebuild": "node scripts/copy-ort.mjs",
     "build": "tsc -b && vite build",
+    "postbuild": "node scripts/build-sw.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",

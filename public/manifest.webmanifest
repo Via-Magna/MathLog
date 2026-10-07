@@ -1,0 +1,16 @@
+{
+  "name": "log(Math) — handwritten math calculator",
+  "short_name": "log(Math)",
+  "description": "Write an equation by hand and see the answer next to the = sign. Recognition and maths run entirely on your device, even offline.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f5f5",
+  "theme_color": "#165cbb",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

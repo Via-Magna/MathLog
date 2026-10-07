@@ -59,6 +59,11 @@ describe('reading and spoken text', () => {
     expect(spokenText([], { kind: 'unknown', text: '?' })).toBe('Answer not readable');
   });
 
+  it('speaks only up to the first =', () => {
+    expect(spokenText(['1', '+', '1', '=', '='], { kind: 'value', text: '2' })).toBe('1 plus 1 equals 2');
+    expect(spokenText(['1', '-', '1', '=', '1', '='], { kind: 'value', text: '0' })).toBe('1 minus 1 equals 0');
+  });
+
   it('explains errors and division by zero', () => {
     expect(hintDetail(bad([], 'Brackets do not match'))).toBe('Brackets do not match');
     expect(hintDetail(undef())).toBe('Division by zero');

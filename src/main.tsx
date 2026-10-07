@@ -4,9 +4,12 @@ import { App } from './components/App';
 // Handwriting font for inline answers, bundled by Vite so it works offline.
 import '@fontsource/caveat/latin-500.css';
 import './index.css';
+import { registerServiceWorker } from './pwa/registerServiceWorker';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
   </StrictMode>
 );
+
+registerServiceWorker();

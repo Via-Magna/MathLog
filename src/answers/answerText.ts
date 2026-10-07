@@ -72,7 +72,11 @@ const SPOKEN: Readonly<Record<string, string>> = {
 
 /** Screen-reader sentence, e.g. "18 plus 4 times 3 equals 30". */
 export function spokenText(rawTokens: readonly string[], answer: AnswerText): string {
-  const said = rawTokens
+  // Speak only up to the first "=": the maths stops there, and ink-on sometimes
+  // reads a single "=" as "= =" or picks up stray marks after it.
+  const firstEquals = rawTokens.indexOf('=');
+  const spokenTokens = firstEquals >= 0 ? rawTokens.slice(0, firstEquals + 1) : rawTokens;
+  const said = spokenTokens
     .map((t) => SPOKEN[t] ?? t.replace(/^\\/, ''))
     .join('')
     .replace(/\s+/g, ' ')

@@ -16,6 +16,10 @@
   color: #8a1c1c;
 }
 
+.badgeOk {
+  color: #1d6b3a;
+}
+
 .overlay {
   position: absolute;
   inset: 0;
