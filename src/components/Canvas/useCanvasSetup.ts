@@ -1,18 +1,21 @@
 import { useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import { sizeLayer, watchDevicePixelRatio } from './canvasLayer';
 
 interface CanvasRefs {
   containerRef: React.RefObject<HTMLDivElement | null>;
   linesCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   bgCanvasRef: React.RefObject<HTMLCanvasElement | null>;
+  answerCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   fgCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   linesCtxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
   bgCtxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
+  answerCtxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
   fgCtxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
 }
 
 /**
- * Hook that sets up the three canvas layers with HiDPI scaling
- * and a ResizeObserver for responsive resizing.
+ * Hook that sets up the four canvas layers (lines, ink, answers, active stroke)
+ * with HiDPI scaling, a ResizeObserver and a devicePixelRatio watcher.
  *
  * @param onResize - Callback fired after canvas resize (to trigger a full redraw).
  *                   Stored in a ref so callers don't need to memoize it.
@@ -21,9 +24,11 @@ export function useCanvasSetup(onResize: (refs: CanvasRefs) => void): CanvasRefs
   const containerRef = useRef<HTMLDivElement | null>(null);
   const linesCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const answerCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const linesCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const bgCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const answerCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const fgCtxRef = useRef<CanvasRenderingContext2D | null>(null);
 
   // Store onResize in a ref so it's always current without causing re-effects
@@ -34,53 +39,32 @@ export function useCanvasSetup(onResize: (refs: CanvasRefs) => void): CanvasRefs
 
   const applyDpiScaling = useCallback(() => {
     const container = containerRef.current;
-    const linesCanvas = linesCanvasRef.current;
-    const bgCanvas = bgCanvasRef.current;
-    const fgCanvas = fgCanvasRef.current;
-    if (!container || !linesCanvas || !bgCanvas || !fgCanvas) return;
+    const layers = [
+      [linesCanvasRef, linesCtxRef],
+      [bgCanvasRef, bgCtxRef],
+      [answerCanvasRef, answerCtxRef],
+      [fgCanvasRef, fgCtxRef],
+    ] as const;
+    if (!container || layers.some(([canvasRef]) => !canvasRef.current)) return;
 
     const dpr = window.devicePixelRatio || 1;
-    const rect = container.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-
-    // Set CSS display size
-    linesCanvas.style.width = `${width}px`;
-    linesCanvas.style.height = `${height}px`;
-    bgCanvas.style.width = `${width}px`;
-    bgCanvas.style.height = `${height}px`;
-    fgCanvas.style.width = `${width}px`;
-    fgCanvas.style.height = `${height}px`;
-
-    // Set internal bitmap size (scaled for HiDPI)
-    linesCanvas.width = width * dpr;
-    linesCanvas.height = height * dpr;
-    bgCanvas.width = width * dpr;
-    bgCanvas.height = height * dpr;
-    fgCanvas.width = width * dpr;
-    fgCanvas.height = height * dpr;
-
-    // Get contexts and apply DPR scaling
-    const linesCtx = linesCanvas.getContext('2d');
-    const bgCtx = bgCanvas.getContext('2d');
-    const fgCtx = fgCanvas.getContext('2d');
-
-    if (linesCtx) {
-      linesCtx.scale(dpr, dpr);
-      linesCtxRef.current = linesCtx;
+    const { width, height } = container.getBoundingClientRect();
+    for (const [canvasRef, ctxRef] of layers) {
+      const ctx = sizeLayer(canvasRef.current!, width, height, dpr);
+      if (ctx) ctxRef.current = ctx;
     }
 
-    if (bgCtx) {
-      bgCtx.scale(dpr, dpr);
-      bgCtxRef.current = bgCtx;
-    }
-
-    if (fgCtx) {
-      fgCtx.scale(dpr, dpr);
-      fgCtxRef.current = fgCtx;
-    }
-
-    onResizeRef.current({ containerRef, linesCanvasRef, bgCanvasRef, fgCanvasRef, linesCtxRef, bgCtxRef, fgCtxRef });
+    onResizeRef.current({
+      containerRef,
+      linesCanvasRef,
+      bgCanvasRef,
+      answerCanvasRef,
+      fgCanvasRef,
+      linesCtxRef,
+      bgCtxRef,
+      answerCtxRef,
+      fgCtxRef,
+    });
   }, []);
 
   useEffect(() => {
@@ -90,14 +74,16 @@ export function useCanvasSetup(onResize: (refs: CanvasRefs) => void): CanvasRefs
     // Initial setup
     applyDpiScaling();
 
-    // Watch for container size changes
+    // Watch for container size changes and for zoom / monitor changes
     const resizeObserver = new ResizeObserver(() => {
       applyDpiScaling();
     });
     resizeObserver.observe(container);
+    const unwatchDpr = watchDevicePixelRatio(applyDpiScaling);
 
     return () => {
       resizeObserver.disconnect();
+      unwatchDpr();
     };
   }, [applyDpiScaling]);
 
@@ -105,9 +91,11 @@ export function useCanvasSetup(onResize: (refs: CanvasRefs) => void): CanvasRefs
     containerRef,
     linesCanvasRef,
     bgCanvasRef,
+    answerCanvasRef,
     fgCanvasRef,
     linesCtxRef,
     bgCtxRef,
+    answerCtxRef,
     fgCtxRef,
   };
 }

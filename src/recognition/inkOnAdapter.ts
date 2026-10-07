@@ -70,12 +70,49 @@ export function inkOnTokens(result: InkOnRecognitionResult, vocab?: InkOnVocab):
   return ok(tokens.filter((t) => !INKON_SPECIAL_TOKENS.has(t)));
 }
 
+/** A `{ … }` group starting at `start`: its inner tokens and the index after the closing brace. */
+function braceGroup(tokens: readonly string[], start: number): { inner: string[]; end: number } | null {
+  if (tokens[start] !== '{') return null;
+  let depth = 0;
+  for (let j = start; j < tokens.length; j++) {
+    if (tokens[j] === '{') depth++;
+    else if (tokens[j] === '}' && --depth === 0) return { inner: tokens.slice(start + 1, j), end: j + 1 };
+  }
+  return null;
+}
+
+/**
+ * CoMER was trained on CROHME, where `12/0` and "12 over 0" are written as
+ * `\frac { 1 2 } { 0 }`, and ink-on's `number` mode still allows `\frac`, `{`, `}`.
+ * Rewrites each fraction as `( A ) / ( B )`, recursively. A malformed fraction is
+ * left as is, so it still fails as UNKNOWN_SYMBOL.
+ */
+export function rewriteFractions(tokens: readonly string[]): string[] {
+  const out: string[] = [];
+  let i = 0;
+  while (i < tokens.length) {
+    if (tokens[i] === '\\frac') {
+      const num = braceGroup(tokens, i + 1);
+      const den = num && braceGroup(tokens, num.end);
+      if (num && den) {
+        out.push('(', ...rewriteFractions(num.inner), ')', '/', '(', ...rewriteFractions(den.inner), ')');
+        i = den.end;
+        continue;
+      }
+    }
+    out.push(tokens[i]);
+    i++;
+  }
+  return out;
+}
+
 const OPERAND_END = new Set(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ')']);
 const OPERAND_START = new Set(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '(']);
 
 /**
  * Maps ink-on output to a `RecognizedExpression`.
  * - `\times` / `\cdot` → `*`, `\div` / `/` → `/`
+ * - `\frac { A } { B }` → `( A ) / ( B )`
  * - a letter `x` between two operands becomes `*` (a handwritten × often decodes as x)
  * - any other token returns UNKNOWN_SYMBOL with its index; `rawTokens` stays 1:1 with `symbols`
  */
@@ -86,7 +123,8 @@ export function adaptInkOn(
 ): Result<RecognizedExpression, MathError & { rawTokens: string[] }> {
   const tokensResult = inkOnTokens(result, vocab);
   if (!tokensResult.ok) return err({ ...tokensResult.error, rawTokens: [] });
-  const rawTokens = tokensResult.value;
+  // Rewritten before mapping, so `rawTokens` stays 1:1 with `symbols`.
+  const rawTokens = rewriteFractions(tokensResult.value);
 
   const symbols: CanonicalSymbol[] = [];
   for (let i = 0; i < rawTokens.length; i++) {

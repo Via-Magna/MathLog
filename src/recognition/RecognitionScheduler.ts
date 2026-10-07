@@ -30,6 +30,11 @@ export interface SchedulerOptions {
   grouping?: Partial<GroupingOptions>;
 }
 
+/** The parts of a LineResult that come from the strokes, not the model. */
+function geometry(line: EquationLine): Pick<LineResult, 'key' | 'bounds' | 'lineHeight' | 'equals'> {
+  return { key: line.key, bounds: line.bounds, lineHeight: line.lineHeight, equals: line.equals };
+}
+
 export class RecognitionScheduler {
   private strokes: readonly Stroke[] = [];
   private lines = new Map<string, EquationLine>();
@@ -69,7 +74,7 @@ export class RecognitionScheduler {
         this.touch(key, cached);
         this.results.set(key, cached);
       } else {
-        this.results.set(key, { key, bounds: line.bounds, status: 'queued' });
+        this.results.set(key, { ...geometry(line), status: 'queued' });
         this.dirty.add(key);
       }
     }
@@ -109,7 +114,7 @@ export class RecognitionScheduler {
   onResult(lineKey: string, latex: string, result: EvalResult, totalMs: number): void {
     const line = this.lines.get(lineKey);
     if (!line) return;
-    const done: LineResult = { key: lineKey, bounds: line.bounds, status: 'done', latex, result, totalMs };
+    const done: LineResult = { ...geometry(line), status: 'done', latex, result, totalMs };
     this.results.set(lineKey, done);
     this.touch(lineKey, done);
     this.publish();
@@ -158,7 +163,11 @@ export class RecognitionScheduler {
     let newest: Stroke | undefined;
     for (const s of this.strokes) if (!newest || s.createdAt > newest.createdAt) newest = s;
     const keys = [...this.dirty];
-    const first = keys.find((k) => newest !== undefined && this.lines.get(k)!.strokeIds.includes(newest.id));
+    const touches = (k: string) => {
+      const line = this.lines.get(k)!;
+      return newest !== undefined && (line.strokeIds.includes(newest.id) || line.eraserIds.includes(newest.id));
+    };
+    const first = keys.find(touches);
     return first ? [first, ...keys.filter((k) => k !== first)] : keys;
   }
 

@@ -91,6 +91,7 @@ export class RecognitionClient {
         points: packed.points,
         strokeLengths: packed.strokeLengths,
         lineWidths: packed.lineWidths,
+        ...(packed.isEraser && { isEraser: packed.isEraser }),
         bounds: line.bounds,
       },
       [packed.points.buffer],

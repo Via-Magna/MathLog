@@ -20,8 +20,14 @@
   z-index: 2;
 }
 
-.foregroundLayer {
+/* Inline answers: above committed ink, below the stroke being drawn. */
+.answerLayer {
   z-index: 3;
+  pointer-events: none;
+}
+
+.foregroundLayer {
+  z-index: 4;
 }
 
 .penCursor {
@@ -38,7 +44,7 @@
   top: 0;
   left: 0;
   pointer-events: none; /* clicks pass through to the canvas below */
-  z-index: 3;
+  z-index: 5;
   width: 24px;
   height: 24px;
   border: 2px solid rgba(100, 100, 100, 0.7);

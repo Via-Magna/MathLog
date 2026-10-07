@@ -12,6 +12,8 @@ interface AppState {
   strokeWidth: number;
   strokeColor: string;
   showLines: boolean;
+  /** Show "What I read" under every recognized line. */
+  showReadings: boolean;
 
   // Stroke data (single source of truth)
   strokes: Stroke[];
@@ -30,6 +32,7 @@ interface AppState {
   redo: () => void;
   clearCanvas: () => void;
   toggleLines: () => void;
+  toggleReadings: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -38,11 +41,14 @@ export const useAppStore = create<AppState>((set) => ({
   strokeWidth: DEFAULT_STROKE_WIDTH,
   strokeColor: DEFAULT_STROKE_COLOR,
   showLines: false,
+  showReadings: false,
   strokes: [],
   undoStack: [],
   redoStack: [],
 
   toggleLines: () => set((state) => ({ showLines: !state.showLines })),
+
+  toggleReadings: () => set((state) => ({ showReadings: !state.showReadings })),
 
   setTool: (tool) => set({ selectedTool: tool }),
 

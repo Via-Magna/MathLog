@@ -62,8 +62,11 @@ function renderStrokes(strokes: readonly InkStroke[]): OffscreenCanvas {
   for (const stroke of strokes) {
     if (stroke.points.length === 0) continue;
     const pts = resamplePoints(stroke.points);
+    // Erasers punch out earlier ink with the same diameter as on screen (radius × 2);
+    // the cleared pixels read as black once composited onto the black target canvas.
+    ctx.globalCompositeOperation = stroke.isEraser ? 'destination-out' : 'source-over';
     ctx.beginPath();
-    ctx.lineWidth = Math.max(2, stroke.lineWidth);
+    ctx.lineWidth = stroke.isEraser ? stroke.lineWidth * 2 : Math.max(2, stroke.lineWidth);
     ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
     if (pts.length === 1) {
       // A single tap: draw a dot so decimal points are visible.
@@ -81,6 +84,7 @@ function renderStrokes(strokes: readonly InkStroke[]): OffscreenCanvas {
     }
     ctx.stroke();
   }
+  ctx.globalCompositeOperation = 'source-over';
   return canvas;
 }
 

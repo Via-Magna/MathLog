@@ -26,7 +26,14 @@ class FakeWorker implements WorkerLike {
 
 const INIT = { type: 'init' } as InitMessage;
 const OK: EvalResult = { kind: 'ok', value: 2, display: '2', pending: false, rawTokens: ['1', '+', '1', '='], trailing: [] };
-const line = (key: string): EquationLine => ({ key, strokeIds: [key], bounds: { x: 0, y: 0, w: 10, h: 10 } });
+const line = (key: string): EquationLine => ({
+  key,
+  strokeIds: [key],
+  eraserIds: [],
+  bounds: { x: 0, y: 0, w: 10, h: 10 },
+  lineHeight: 10,
+  equals: null,
+});
 const packed = () => ({ points: new Float32Array([1, 2]), strokeLengths: [1], lineWidths: [3] });
 const result = (requestId: number, lineKey: string): FromWorker => ({
   type: 'result',

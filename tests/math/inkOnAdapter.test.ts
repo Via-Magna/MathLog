@@ -4,6 +4,7 @@ import { evaluate } from '../../src/math';
 import {
   adaptInkOn,
   inkOnTokens,
+  rewriteFractions,
   INKON_TOKEN_MAP,
   type InkOnRecognitionResult,
 } from '../../src/recognition/inkOnAdapter';
@@ -98,7 +99,8 @@ describe('adaptInkOn', () => {
     [['2', '+', 'x', '='], 2],
     [['2', 'x'], 1],
     [['2', '^', '{', '3', '}', '='], 1],
-    [['\\frac', '{', '1', '}', '{', '2', '}'], 0],
+    // A well-formed \frac is rewritten (see below); one missing its denominator is still unknown.
+    [['\\frac', '{', '1', '}', '='], 0],
     [['\\alpha', '='], 0],
   ])('rejects %j at index %i', (tokens, index) => {
     const r = adaptInkOn(recognition(tokens as string[]), vocab, BOUNDS);
@@ -113,5 +115,42 @@ describe('adaptInkOn', () => {
   it('returns empty rawTokens when ids cannot be decoded', () => {
     const r = adaptInkOn({ latex: '', tokenIds: [999] }, vocab, BOUNDS);
     expect(!r.ok && r.error.rawTokens).toEqual([]);
+  });
+});
+
+describe('fractions (a handwritten "/" often decodes as \\frac)', () => {
+  const run = (tokens: string[]) => {
+    const adapted = adaptInkOn(recognition(tokens), vocab, BOUNDS);
+    if (!adapted.ok) throw new Error(adapted.error.message);
+    return { adapted: adapted.value, result: evaluate(adapted.value) };
+  };
+
+  it('rewrites \\frac { A } { B } as ( A ) / ( B )', () => {
+    expect(rewriteFractions(['\\frac', '{', '1', '2', '}', '{', '0', '}', '='])).toEqual(
+      ['(', '1', '2', ')', '/', '(', '0', ')', '='],
+    );
+  });
+
+  it('12/0= read as a fraction gives Undefined', () => {
+    const { adapted, result } = run(['\\frac', '{', '1', '2', '}', '{', '0', '}', '=']);
+    expect(result.kind).toBe('undefined');
+    expect(adapted.rawTokens).toHaveLength(adapted.symbols.length);
+  });
+
+  it('6/3= read as a fraction gives 2, and keeps operator precedence', () => {
+    expect(run(['\\frac', '{', '6', '}', '{', '3', '}', '=']).result).toMatchObject({ kind: 'ok', display: '2' });
+    expect(run(['1', '+', '\\frac', '{', '6', '}', '{', '1', '+', '2', '}', '=']).result).toMatchObject({ kind: 'ok', display: '3' });
+  });
+
+  it('handles nested fractions', () => {
+    const tokens = ['\\frac', '{', '\\frac', '{', '8', '}', '{', '2', '}', '}', '{', '2', '}', '='];
+    expect(run(tokens).result).toMatchObject({ kind: 'ok', display: '2' });
+  });
+
+  it('leaves a malformed fraction alone, so it still fails as an unknown symbol', () => {
+    expect(rewriteFractions(['\\frac', '{', '1', '}', '='])).toEqual(['\\frac', '{', '1', '}', '=']);
+    expect(rewriteFractions(['\\frac', '1', '2'])).toEqual(['\\frac', '1', '2']);
+    const adapted = adaptInkOn(recognition(['\\frac', '{', '1', '}', '=']), vocab, BOUNDS);
+    expect(adapted.ok).toBe(false);
   });
 });

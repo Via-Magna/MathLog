@@ -30,6 +30,12 @@ export const bar = (id: string, x: number, y: number, w = 20) =>
     [x + w, y],
   ]);
 
+/** A pixel-eraser path of radius r (drawn after everything created so far). */
+export const eraser = (id: string, points: [number, number][], r = 10): Stroke => ({
+  ...stroke(id, points, r),
+  isEraser: true,
+});
+
 /** A dot (decimal point, ÷ dot). */
 export const dot = (id: string, x: number, y: number) => stroke(id, [[x, y]]);
 

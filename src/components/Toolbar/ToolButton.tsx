@@ -24,6 +24,7 @@ export function ToolButton({
       onClick={onClick}
       disabled={isDisabled}
       aria-label={label}
+      aria-pressed={isActive}
       title={shortcut ? `${label} (${shortcut})` : label}
     >
       {icon}
