@@ -7,7 +7,8 @@ import styles from './Recognition.module.css';
  * Developer overlay, shown only with `?debug` in the URL: a box around each
  * equation line with what ink-on read, the Phase 2 result and the timing,
  * plus an "Export strokes" button for recording test fixtures.
- * Phase 4 replaces this with the real inline answer.
+ * The user-facing answers are drawn by `src/answers/AnswerRenderer.ts`;
+ * this stays as a developer tool.
  */
 
 const isDebugMode = (): boolean =>

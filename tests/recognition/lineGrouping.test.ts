@@ -75,6 +75,31 @@ describe('groupIntoLines', () => {
     expect(line.bounds).toEqual({ x: 10, y: 95, w: 42, h: 50 });
   });
 
+  it('splits two equations written close together after the first "="', () => {
+    // 1 + 1 =   7 − 1 =   (40 px digits, second equation starts 60 px after the first "=")
+    const strokes = [
+      digit('a1', 0, 100), bar('aPlus', 25, 120), digit('a2', 50, 100), bar('aEq1', 75, 115), bar('aEq2', 75, 127),
+      digit('b1', 155, 100), bar('bMinus', 180, 120), digit('b2', 205, 100), bar('bEq1', 230, 115), bar('bEq2', 230, 127),
+    ];
+    const lines = groupIntoLines(strokes);
+    expect(ids(lines)).toEqual([
+      ['a1', 'aPlus', 'a2', 'aEq1', 'aEq2'],
+      ['b1', 'bMinus', 'b2', 'bEq1', 'bEq2'],
+    ]);
+    expect(lines.map((l) => l.equals?.strokeIds)).toEqual([['aEq1', 'aEq2'], ['bEq1', 'bEq2']]);
+  });
+
+  it('keeps an answer the user wrote right after the "=" on the same line', () => {
+    // 2 + 2 = 4, with the 4 written 20 px after the "="
+    const strokes = [digit('a', 0, 100), bar('plus', 25, 120), digit('b', 50, 100), bar('eq1', 75, 115), bar('eq2', 75, 127), digit('four', 115, 100)];
+    expect(groupIntoLines(strokes)).toHaveLength(1);
+  });
+
+  it('does not split at a gap that does not follow an "="', () => {
+    const strokes = [digit('a', 0, 100), digit('b', 100, 100)];
+    expect(groupIntoLines(strokes)).toHaveLength(1);
+  });
+
   it('respects custom options', () => {
     const strokes = [digit('a', 0, 100), digit('b', 100, 100)];
     expect(groupIntoLines(strokes, { gapRatio: 1 })).toHaveLength(2);

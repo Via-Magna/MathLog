@@ -35,6 +35,8 @@ export interface RecognizeMessage {
   /** Number of points in each stroke, in order. */
   strokeLengths: number[];
   lineWidths: number[];
+  /** Per stroke: true for eraser paths, drawn with destination-out. Omitted when the line has none. */
+  isEraser?: boolean[];
   bounds: Bounds;
 }
 

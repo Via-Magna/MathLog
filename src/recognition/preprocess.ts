@@ -67,12 +67,14 @@ export function resamplePoints(points: InkPoint[], interval = RESAMPLE_INTERVAL)
   return resampled;
 }
 
+/** Box of the ink strokes; eraser paths are ignored. */
 export function inkBBox(strokes: readonly InkStroke[]): InkBBox {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
   for (const s of strokes) {
+    if (s.isEraser) continue;
     for (const p of s.points) {
       if (p.x < minX) minX = p.x;
       if (p.y < minY) minY = p.y;
@@ -87,8 +89,9 @@ const MIN_STROKE_SIZE = 8;
 const MIN_TOTAL_POINTS = 6;
 const MIN_PATH_LENGTH = 15;
 
-/** ink-on's filter for dots and accidental taps. */
-export function isStrokeMeaningful(strokes: readonly InkStroke[]): boolean {
+/** ink-on's filter for dots and accidental taps. Eraser paths don't count as ink. */
+export function isStrokeMeaningful(all: readonly InkStroke[]): boolean {
+  const strokes = all.filter((s) => !s.isEraser);
   if (strokes.length === 0) return false;
   const bbox = inkBBox(strokes);
   const w = bbox.maxX - bbox.minX;

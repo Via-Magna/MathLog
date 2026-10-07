@@ -19,7 +19,8 @@
 .overlay {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  /* Above the active-stroke canvas (z 4) so the debug bar stays clickable. */
+  z-index: 5;
   pointer-events: none;
 }
 

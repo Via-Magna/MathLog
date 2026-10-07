@@ -6,6 +6,7 @@ import {
   Redo2,
   Trash2,
   AlignJustify,
+  ScanText,
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { ToolButton } from './ToolButton';
@@ -22,6 +23,8 @@ export function Toolbar() {
   const redoStack = useAppStore((s) => s.redoStack);
   const showLines = useAppStore((s) => s.showLines);
   const toggleLines = useAppStore((s) => s.toggleLines);
+  const showReadings = useAppStore((s) => s.showReadings);
+  const toggleReadings = useAppStore((s) => s.toggleReadings);
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback(
@@ -35,6 +38,9 @@ export function Toolbar() {
       } else if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'e' || e.key === 'E')) {
         e.preventDefault();
         setTool('eraser');
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault();
+        toggleReadings();
       } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
         e.preventDefault();
         redo();
@@ -46,7 +52,7 @@ export function Toolbar() {
         redo();
       }
     },
-    [setTool, undo, redo]
+    [setTool, undo, redo, toggleReadings]
   );
 
   useEffect(() => {
@@ -105,6 +111,13 @@ export function Toolbar() {
           label="Toggle Lines"
           isActive={showLines}
           onClick={toggleLines}
+        />
+        <ToolButton
+          icon={<ScanText size={20} />}
+          label="Show readings"
+          shortcut="R"
+          isActive={showReadings}
+          onClick={toggleReadings}
         />
       </div>
 

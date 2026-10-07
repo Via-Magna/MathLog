@@ -2,6 +2,9 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { useCanvasSetup } from './useCanvasSetup';
 import { useDrawing } from './useDrawing';
+import type { AnswerRenderer } from '../../answers/AnswerRenderer';
+import { useAnswers } from '../../answers/useAnswers';
+import { AnswerAnnouncer } from '../Answers/AnswerAnnouncer';
 import { RecognitionDebugOverlay } from '../Recognition/RecognitionDebugOverlay';
 import { RecognitionStatus } from '../Recognition/RecognitionStatus';
 import { renderAllStrokes, renderGridLines } from './strokeRenderer';
@@ -16,13 +19,19 @@ export function Canvas() {
 
   const eraserCursorRef = useRef<HTMLDivElement | null>(null);
 
-  const { containerRef, linesCanvasRef, bgCanvasRef, fgCanvasRef, linesCtxRef, bgCtxRef, fgCtxRef } =
+  const answersRef = useRef<AnswerRenderer | null>(null);
+
+  const { containerRef, linesCanvasRef, bgCanvasRef, answerCanvasRef, fgCanvasRef, linesCtxRef, bgCtxRef, answerCtxRef, fgCtxRef } =
     useCanvasSetup(({ bgCtxRef, bgCanvasRef, linesCtxRef, linesCanvasRef }) => {
+      // Resizing cleared the answer bitmap too; the renderer re-places and redraws.
+      answersRef.current?.invalidate();
       if (!bgCtxRef.current || !bgCanvasRef.current || !linesCtxRef.current || !linesCanvasRef.current) return;
       const state = useAppStore.getState();
       renderAllStrokes(bgCtxRef.current, bgCanvasRef.current, state.strokes);
       renderGridLines(linesCtxRef.current, linesCanvasRef.current, CANVAS_BG_COLOR, state.showLines);
     });
+
+  useAnswers(answerCanvasRef, answerCtxRef, answersRef);
 
   useDrawing({
     fgCanvasRef,
@@ -62,6 +71,8 @@ export function Canvas() {
     <div ref={containerRef} className={styles.canvasContainer}>
       <canvas ref={linesCanvasRef} className={`${styles.canvas} ${styles.linesLayer}`} />
       <canvas ref={bgCanvasRef} className={`${styles.canvas} ${styles.backgroundLayer}`} />
+      {/* Answers are drawn here; screen readers get them from the live region instead. */}
+      <canvas ref={answerCanvasRef} className={`${styles.canvas} ${styles.answerLayer}`} aria-hidden="true" />
       <canvas
         ref={fgCanvasRef}
         className={`${styles.canvas} ${styles.foregroundLayer} ${cursorClass}`}
@@ -77,6 +88,7 @@ export function Canvas() {
       )}
       <RecognitionDebugOverlay />
       <RecognitionStatus />
+      <AnswerAnnouncer />
     </div>
   );
 }

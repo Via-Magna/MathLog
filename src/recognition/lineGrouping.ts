@@ -1,6 +1,8 @@
 import type { Bounds } from '../math/symbols';
 import type { Stroke } from '../types';
 import { computeBoundingBox } from '../utils/geometry';
+import { findEquals, type EqualsSign } from './findEquals';
+import { erasersOver, visibleInk } from './visibleInk';
 
 /**
  * Splits canvas strokes into equation lines. ink-on reads one expression per
@@ -8,12 +10,18 @@ import { computeBoundingBox } from '../utils/geometry';
  */
 
 export interface EquationLine {
-  /** Stable id: FNV-1a hash of the sorted stroke ids. Same strokes → same key. */
+  /** Stable id: FNV-1a hash of the sorted stroke + eraser ids. Same strokes → same key. */
   key: string;
-  /** Stroke ids, left to right by bounding-box minX. */
+  /** Visible ink stroke ids, left to right by bounding-box minX. */
   strokeIds: string[];
+  /** Eraser strokes that cut this line's ink, in drawing order. */
+  eraserIds: string[];
   /** Union of the strokes' boxes, canvas CSS px. */
   bounds: Bounds;
+  /** Typical character height (median of the line's tall strokes), CSS px. Sizes the answer. */
+  lineHeight: number;
+  /** Where the "=" is drawn, if the geometry shows one. The answer goes right of it. */
+  equals: EqualsSign | null;
 }
 
 export interface GroupingOptions {
@@ -27,6 +35,10 @@ export interface GroupingOptions {
   smallRatio: number;
   /** A horizontal gap wider than this × H splits a line in two. */
   gapRatio: number;
+  /** After an "=", a gap wider than this × line height starts a new equation. */
+  afterEqualsGapRatio: number;
+  /** Strokes at least this × the line's tallest stroke count as digits for its line height. */
+  digitRatio: number;
   /** Small strokes farther than this × H from every line start their own line. */
   maxAttachRatio: number;
   /** Line height used when there are no tall strokes. */
@@ -39,6 +51,8 @@ export const DEFAULT_GROUPING: GroupingOptions = {
   centreRatio: 0.6,
   smallRatio: 0.35,
   gapRatio: 4,
+  afterEqualsGapRatio: 1,
+  digitRatio: 0.75,
   maxAttachRatio: 1,
   defaultLineHeight: 40,
 };
@@ -91,7 +105,15 @@ function verticalDistance(box: Box, group: Group): number {
   return 0;
 }
 
-function toLine(members: Box[]): EquationLine {
+interface LineContext {
+  strokes: readonly Stroke[];
+  byId: Map<string, Stroke>;
+  /** Canvas-wide character height. */
+  H: number;
+  opts: GroupingOptions;
+}
+
+function toLine(members: Box[], { strokes, byId, H, opts }: LineContext): EquationLine {
   const sorted = [...members].sort((a, b) => a.minX - b.minX);
   let minX = Infinity;
   let minY = Infinity;
@@ -104,10 +126,15 @@ function toLine(members: Box[]): EquationLine {
     maxY = Math.max(maxY, b.maxY);
   }
   const strokeIds = sorted.map((b) => b.id);
+  const eraserIds = erasersOver(strokes, strokeIds.map((id) => byId.get(id)!));
+  const lineHeight = lineHeightOf(sorted, H, opts);
   return {
-    key: lineKey(strokeIds),
+    key: lineKey([...strokeIds, ...eraserIds]),
     strokeIds,
+    eraserIds,
     bounds: { x: minX, y: minY, w: maxX - minX, h: maxY - minY },
+    lineHeight,
+    equals: findEquals(sorted, lineHeight),
   };
 }
 
@@ -130,12 +157,52 @@ function splitByGap(members: Box[], maxGap: number): Box[][] {
   return parts;
 }
 
+/**
+ * The line's digit height: median of the strokes at least `digitRatio` × its
+ * tallest stroke. That leaves out dots, bars, and the shorter strokes of
+ * `+`, `×` and two-stroke digits, which would otherwise drag it down.
+ * Judged per line, not against the page-wide H, so a small equation on a page
+ * of large writing still gets a small answer.
+ */
+function lineHeightOf(members: readonly Box[], H: number, opts: GroupingOptions): number {
+  const tallest = Math.max(...members.map((b) => b.h));
+  const tall = members.filter((b) => b.h > opts.minTallHeight && b.h >= opts.digitRatio * tallest);
+  return median(tall.map((b) => b.h)) ?? H;
+}
+
+/**
+ * Splits one line after an "=" followed by a clear gap: an equation ends at
+ * its "=", so ink well to its right is the next equation. Catches two
+ * equations written closer together than `gapRatio` allows.
+ */
+function splitAfterEquals(members: Box[], H: number, opts: GroupingOptions): Box[][] {
+  const sorted = [...members].sort((a, b) => a.minX - b.minX);
+  const lh = lineHeightOf(sorted, H, opts);
+  let runMaxX = -Infinity;
+  for (let i = 0; i < sorted.length; i++) {
+    const b = sorted[i];
+    if (i > 0 && b.minX - runMaxX > opts.afterEqualsGapRatio * lh) {
+      const left = sorted.slice(0, i);
+      const eq = findEquals(left, lh);
+      // Only when the "=" is the last thing before the gap.
+      if (eq && eq.bounds.x + eq.bounds.w >= runMaxX - 0.25 * lh) {
+        return [left, ...splitAfterEquals(sorted.slice(i), H, opts)];
+      }
+    }
+    runMaxX = Math.max(runMaxX, b.maxX);
+  }
+  return [sorted];
+}
+
 export function groupIntoLines(
   strokes: readonly Stroke[],
   options: Partial<GroupingOptions> = {},
 ): EquationLine[] {
   const opts = { ...DEFAULT_GROUPING, ...options };
-  const boxes = strokes.filter((s) => s.points.length > 0).map(toBox);
+  // Erased ink and eraser paths are not ink; erasers only show up in line keys.
+  const ink = visibleInk(strokes);
+  const byId = new Map(ink.map((s) => [s.id, s]));
+  const boxes = ink.map(toBox);
   if (boxes.length === 0) return [];
 
   const H = median(boxes.filter((b) => b.h > opts.minTallHeight).map((b) => b.h)) ?? opts.defaultLineHeight;
@@ -186,6 +253,9 @@ export function groupIntoLines(
   }
 
   // 3. Split side-by-side equations, then build stable lines.
-  const lines = groups.flatMap((g) => splitByGap(g.members, opts.gapRatio * H)).map(toLine);
+  const lines = groups
+    .flatMap((g) => splitByGap(g.members, opts.gapRatio * H))
+    .flatMap((members) => splitAfterEquals(members, H, opts))
+    .map((members) => toLine(members, { strokes, byId, H, opts }));
   return lines.sort((a, b) => a.bounds.y - b.bounds.y || a.bounds.x - b.bounds.x);
 }
