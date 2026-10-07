@@ -11,6 +11,7 @@ import {
 import { useAppStore } from '../../store/useAppStore';
 import { ToolButton } from './ToolButton';
 import { StrokeWidthSlider } from './StrokeWidthSlider';
+import logoUrl from '../../assets/logo.png';
 import styles from './Toolbar.module.css';
 
 export function Toolbar() {
@@ -62,6 +63,12 @@ export function Toolbar() {
 
   return (
     <div className={styles.toolbar}>
+      <div className={styles.logo}>
+        <img src={logoUrl} alt="log(Math)" className={styles.logoImage} draggable={false} />
+      </div>
+
+      <div className={styles.divider} />
+      
       <div className={styles.toolGroup}>
         <ToolButton
           icon={<Pen size={20} />}

@@ -9,6 +9,27 @@
   width: var(--toolbar-width, 60px);
   min-width: var(--toolbar-width, 60px);
   user-select: none;
+  overflow-y: auto;
+   min-width: var(--toolbar-width, 60px);
+  user-select: none;
+  overflow-y: auto;
+}
+
+.logo {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 140px;
+}
+
+.logoImage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 140px;
+  height: auto;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  pointer-events: none;
 }
 
 .toolGroup {
@@ -92,6 +113,21 @@
     border-top: 1px solid var(--color-toolbar-border, #e0e0e0);
     padding: 8px 12px;
     order: 1; /* Push to bottom in column flex layout */
+    overflow-y: visible;
+    overflow-x: auto;
+  }
+
+   /* Bottom bar: the wordmark lies flat. */
+  .logo {
+    width: auto;
+    height: 24px;
+  }
+
+  .logoImage {
+    position: static;
+    width: auto;
+    height: 24px;
+    transform: none;
   }
 
   .toolGroup {
