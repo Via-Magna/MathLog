@@ -20,8 +20,8 @@ log(Math) is our submission for the **CalcInk: On-Device Handwritten Math Calcul
 ## Highlights
 
 - **100% on-device.** The handwriting model ([CoMER](#model-and-attribution) via ink-on) runs on ONNX Runtime Web in a Web Worker. Nothing is sent to a server; there is no server.
-- **Works offline.** A service worker caches the app and the 7.4 MB model on the first visit. After that, airplane mode works. [Verified](docs/PERFORMANCE.md#results).
-- **Smooth at 60 FPS.** Inference never runs on the main thread: ~58 FPS and zero long tasks measured while the model was running.
+- **Works offline.** A service worker caches the app and the 7.4 MB model on the first visit. After that, airplane mode works. [Verified](docs/PERFORMANCE.md#results). On first load, it will take a while.
+- **Smooth at 60 FPS.** Inference never runs on the main thread: ~58 FPS and zero long tasks measured while the model was running. ![60 FPS during inference](docs/images/devtools-60fps.jpeg)
 - **No `eval()`.** Our own tokenizer, shunting-yard parser and RPN evaluator, with BODMAS, decimals, negative numbers, brackets and `Undefined` for division by zero.
 - **Live editing.** Erasing, rewriting, undo and redo update answers automatically; undo is instant thanks to a result cache.
 - **Digital-paper feel.** Answers in handwriting ink, sized to your writing, fading in and crossfading on edits, with thinking dots and an optional "what I read" hint.
@@ -29,11 +29,11 @@ log(Math) is our submission for the **CalcInk: On-Device Handwritten Math Calcul
 
 ## Live demo
 
-**➜ Live demo: https://REPLACE-WITH-DEPLOYED-URL**
+**➜ Live demo: https://via-magna.github.io/MathLog/**
 
 Try `18+4×3=`, `0.1+0.2=`, `12÷0=` and `-(2+3)×4=`, then erase and rewrite a digit. Add `?debug` to the URL to see each line's recognition box, what the model read and the inference time.
 
-<!-- Add a screenshot or GIF here: docs/images/demo.gif -->
+![Demo picture](docs/images/demo.jpg)
 
 ## Quick start
 

@@ -7,6 +7,7 @@ The brief requires drawing to stay at 60 FPS while recognition runs, and the who
 Measured on 7 October 2026 in headless Chromium (Playwright) on a 2-core Linux VM with software rendering, against a production build served with COOP/COEP headers. ONNX Runtime ran multi-threaded WASM on 2 threads.
 
 **Frame rate while the model runs.** We wrote `1+1=`, waited until its recognition started, then scribbled continuously for 4 seconds on another line while the worker was inferring. Frame times came from `requestAnimationFrame` deltas; long tasks from a `PerformanceObserver('longtask')`. The control run is the same scribble with no recognition at all.
+![60 FPS during inference](images/devtools-60fps.jpeg)
 
 | Run | CPU | Avg FPS | Median frame | 95th pct frame | Main-thread long tasks (>50 ms) |
 | --- | --- | --- | --- | --- | --- |
